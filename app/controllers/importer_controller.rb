@@ -1,5 +1,6 @@
 require 'fastercsv'
-require 'tempfile'
+require 'tmpdir'
+require 'ftools'
 
 class ImporterController < ApplicationController
   unloadable
@@ -22,8 +23,24 @@ class ImporterController < ApplicationController
     
     # save import file
     @original_filename = file.original_filename
-    # Abuse of session system, but...
-    session[:importer_csvdata] = file.read
+
+    # Get filename to save to
+    base = Dir.tmpdir + '/76574894-3431-4D74-8A0D-2A7CE69DE7A1/csvupload'
+    i = 1
+    until !File.exist?(base+i.to_s)
+        i += 1
+    end
+    filename = base + i.to_s
+    
+    # Create parent directory if necessary
+    File.makedirs(Dir.tmpdir + '/76574894-3431-4D74-8A0D-2A7CE69DE7A1/')
+    
+    # Save to file
+    tmpfile = File.new(filename, 'w')
+    tmpfile.write(File.read(file.path))
+    tmpfile.close
+
+    session[:importer_filename] = filename
     session[:importer_splitter] = splitter
     session[:importer_wrapper] = wrapper
     session[:importer_encoding] = encoding
@@ -33,7 +50,7 @@ class ImporterController < ApplicationController
     i = 0
     @samples = []
     
-    FasterCSV.new(session[:importer_csvdata], {:headers=>true,
+    FasterCSV.new(File.read(file.path), {:headers=>true,
     :encoding=>encoding, :quote_char=>wrapper, :col_sep=>splitter}).each do |row|
       @samples[i] = row
      
@@ -60,12 +77,14 @@ class ImporterController < ApplicationController
   end
 
   def result
-    csvdata = session[:importer_csvdata]
+    filename = session[:importer_filename]
     splitter = session[:importer_splitter]
     wrapper = session[:importer_wrapper]
     encoding = session[:importer_encoding]
-    # Give the poor session system some relief
-    session[:importer_csvdata] = ""
+
+    # Get CSV data and delete tempfile
+    csvdata = File.read(session[:importer_filename])
+    File.delete(session[:importer_filename])
     
     default_tracker = params[:default_tracker]
     update_issue = params[:update_issue]
