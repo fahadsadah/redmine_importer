@@ -25,7 +25,7 @@ class ImporterController < ApplicationController
     @original_filename = file.original_filename
 
     # Get filename to save to
-    base = Dir.tmpdir + '/76574894-3431-4D74-8A0D-2A7CE69DE7A1/csvupload'
+    base = RAILS_ROOT + '/public/csvupload'
     i = 1
     until !File.exist?(base+i.to_s)
         i += 1
